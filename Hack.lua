@@ -1,4 +1,4 @@
--- JK SCRIPTS - Free (Fraco) vs Premium/Admin (Reforçado)
+-- JK SCRIPTS - Versão Limpa com Novas Keys
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -13,9 +13,9 @@ print("✅ JK SCRIPTS INICIANDO...")
 
 -- ===== SISTEMA DE KEY =====
 local keys = {
-    ["SCRIPT-VIPJK"] = {tier = "Premium", features = {"Aimbot", "ESP", "Telekill", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
-    ["JK-ADMIN"] = {tier = "Admin", features = {"Aimbot", "ESP", "Telekill", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
-    ["JKFREE"] = {tier = "Free", features = {"Aimbot", "ESP"}},
+    ["SCRIPTJK-VIP"] = {tier = "VIP", features = {"Aimbot", "ESP", "Telekill", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor", "SpeedHack", "Fly", "NoRecoil"}},
+    ["JK-MOD"] = {tier = "MOD", features = {"Aimbot", "ESP", "Telekill", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor", "SpeedHack", "Fly", "NoRecoil"}},
+    ["GRATIS"] = {tier = "Free", features = {"Aimbot", "ESP"}},
 }
 
 local isAuthenticated = false
@@ -24,11 +24,7 @@ local userFeatures = {}
 local userTier = ""
 
 local function checkKey(key)
-    if keys[key] then
-        userFeatures = keys[key].features
-        userTier = keys[key].tier
-        return true, keys[key].tier
-    end
+    if keys[key] then userFeatures = keys[key].features; userTier = keys[key].tier; return true, keys[key].tier end
     return false, nil
 end
 
@@ -39,7 +35,7 @@ local function hasAccess(feature)
 end
 
 local function isPremium()
-    return userTier == "Premium" or userTier == "Admin"
+    return userTier == "VIP" or userTier == "MOD"
 end
 
 -- Variáveis
@@ -61,6 +57,15 @@ local ESPObjects = {}
 local FOVHidden = false
 local TelekillEnabled = false
 
+-- VIP Variáveis
+local SpeedHackEnabled = false
+local SpeedValue = 50
+local FlyEnabled = false
+local FlySpeed = 50
+local NoRecoilEnabled = false
+local FlyBodyVelocity = nil
+local FlyBodyGyro = nil
+
 -- Criar GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "JKSscripts"
@@ -69,7 +74,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.IgnoreGuiInset = true
 gui.Parent = LP.PlayerGui
 
--- Funções
+-- ===== FUNÇÕES =====
 local function IsEnemy(p)
     if not p or p == LP then return false end
     if not p.Character then return false end
@@ -90,7 +95,6 @@ local function GetClosestEnemy()
     local best, bestDist = nil, math.huge
     local myPos = LP.Character.HumanoidRootPart.Position
     local maxDist = isPremium() and math.huge or 100
-    
     for _, p in pairs(Players:GetPlayers()) do
         if IsEnemy(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local d = (myPos - p.Character.HumanoidRootPart.Position).Magnitude
@@ -100,7 +104,148 @@ local function GetClosestEnemy()
     return best, bestDist
 end
 
--- TELEKILL (APENAS PREMIUM)
+-- ===== SPEED HACK =====
+local function ToggleSpeedHack(enabled)
+    if not isPremium() then Notify("🔒 Exclusivo VIP/MOD!"); return end
+    SpeedHackEnabled = enabled
+    
+    local function applySpeed(char)
+        local humanoid = char:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = enabled and SpeedValue or 16 end
+    end
+    
+    if LP.Character then applySpeed(LP.Character) end
+    
+    LP.CharacterAdded:Connect(function(char)
+        task.wait(0.1)
+        applySpeed(char)
+    end)
+    
+    Notify(enabled and "💨 Speed: " .. SpeedValue or "💨 Speed Normal")
+end
+
+local function SetSpeed(value)
+    SpeedValue = value
+    if SpeedHackEnabled and LP.Character then
+        local humanoid = LP.Character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = value end
+    end
+end
+
+-- ===== FLY MOBILE =====
+local flyUpBtn = nil
+local flyDownBtn = nil
+
+local function ToggleFly(enabled)
+    if not isPremium() then Notify("🔒 Exclusivo VIP/MOD!"); return end
+    FlyEnabled = enabled
+    
+    if enabled then
+        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+            local root = LP.Character.HumanoidRootPart
+            local humanoid = LP.Character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.PlatformStand = true end
+            
+            FlyBodyVelocity = Instance.new("BodyVelocity")
+            FlyBodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+            FlyBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            FlyBodyVelocity.Parent = root
+            
+            FlyBodyGyro = Instance.new("BodyGyro")
+            FlyBodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+            FlyBodyGyro.CFrame = root.CFrame
+            FlyBodyGyro.Parent = root
+        end
+        
+        -- Botão Subir
+        flyUpBtn = Instance.new("TextButton")
+        flyUpBtn.Size = UDim2.new(0, 60, 0, 60)
+        flyUpBtn.Position = UDim2.new(0.5, -30, 0.85, -30)
+        flyUpBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+        flyUpBtn.Text = "⬆️"
+        flyUpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        flyUpBtn.Font = Enum.Font.GothamBold
+        flyUpBtn.TextSize = 24
+        flyUpBtn.BorderSizePixel = 0
+        flyUpBtn.ZIndex = 300
+        flyUpBtn.Parent = gui
+        Instance.new("UICorner", flyUpBtn).CornerRadius = UDim.new(0, 30)
+        Instance.new("UIStroke", flyUpBtn).Color = Color3.fromRGB(80, 130, 255)
+        
+        -- Botão Descer
+        flyDownBtn = Instance.new("TextButton")
+        flyDownBtn.Size = UDim2.new(0, 60, 0, 60)
+        flyDownBtn.Position = UDim2.new(0.5, -30, 0.65, -30)
+        flyDownBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+        flyDownBtn.Text = "⬇️"
+        flyDownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        flyDownBtn.Font = Enum.Font.GothamBold
+        flyDownBtn.TextSize = 24
+        flyDownBtn.BorderSizePixel = 0
+        flyDownBtn.ZIndex = 300
+        flyDownBtn.Parent = gui
+        Instance.new("UICorner", flyDownBtn).CornerRadius = UDim.new(0, 30)
+        Instance.new("UIStroke", flyDownBtn).Color = Color3.fromRGB(80, 130, 255)
+        
+        Notify("🕊️ Fly Ativado!")
+    else
+        if FlyBodyVelocity then FlyBodyVelocity:Destroy(); FlyBodyVelocity = nil end
+        if FlyBodyGyro then FlyBodyGyro:Destroy(); FlyBodyGyro = nil end
+        if flyUpBtn then flyUpBtn:Destroy(); flyUpBtn = nil end
+        if flyDownBtn then flyDownBtn:Destroy(); flyDownBtn = nil end
+        
+        if LP.Character then
+            local humanoid = LP.Character:FindFirstChild("Humanoid")
+            if humanoid then humanoid.PlatformStand = false end
+        end
+        Notify("🕊️ Fly Desativado")
+    end
+end
+
+-- Controle Fly
+local function setupFlyButton(button, direction)
+    local connection
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            connection = RunService.RenderStepped:Connect(function()
+                if FlyEnabled and FlyBodyVelocity and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
+                    local currentVelocity = FlyBodyVelocity.Velocity
+                    FlyBodyVelocity.Velocity = currentVelocity + Vector3.new(0, direction * FlySpeed, 0)
+                end
+            end)
+        end
+    end)
+    button.InputEnded:Connect(function()
+        if connection then connection:Disconnect(); connection = nil end
+    end)
+end
+
+RunService.RenderStepped:Connect(function()
+    if not FlyEnabled or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local humanoid = LP.Character:FindFirstChild("Humanoid")
+    local moveDirection = Vector3.new(0, 0, 0)
+    
+    if humanoid and humanoid.MoveDirection.Magnitude > 0 then
+        moveDirection = humanoid.MoveDirection * FlySpeed
+    end
+    
+    if FlyBodyVelocity then
+        FlyBodyVelocity.Velocity = Vector3.new(moveDirection.X, FlyBodyVelocity.Velocity.Y, moveDirection.Z)
+    end
+    if FlyBodyGyro then
+        FlyBodyGyro.CFrame = Camera.CFrame
+    end
+end)
+
+-- ===== NO RECOIL =====
+local function ToggleNoRecoil(enabled)
+    if not isPremium() then Notify("🔒 Exclusivo VIP/MOD!"); return end
+    NoRecoilEnabled = enabled
+    Notify(enabled and "🎯 No Recoil Ativado!" or "🎯 No Recoil Desativado")
+end
+
+-- ===== TELEKILL =====
 local function TelekillLoop()
     while TelekillEnabled and isAuthenticated and hasAccess("Telekill") do
         task.wait(isPremium() and 0.001 or 0.1)
@@ -110,49 +255,32 @@ local function TelekillLoop()
             LP.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
             if isPremium() then
                 local tool = nil
-                if LP.Backpack then
-                    for _, item in pairs(LP.Backpack:GetChildren()) do
-                        if item:IsA("Tool") then tool = item; break end
-                    end
-                end
-                if not tool and LP.Character then
-                    for _, item in pairs(LP.Character:GetChildren()) do
-                        if item:IsA("Tool") then tool = item; break end
-                    end
-                end
+                if LP.Backpack then for _, item in pairs(LP.Backpack:GetChildren()) do if item:IsA("Tool") then tool = item; break end end end
+                if not tool and LP.Character then for _, item in pairs(LP.Character:GetChildren()) do if item:IsA("Tool") then tool = item; break end end end
                 if tool then
                     if tool.Parent == LP.Backpack then LP.Character.Humanoid:EquipTool(tool) end
                     pcall(function() tool:Activate(); task.wait(0.05); if tool.Parent then tool:Deactivate() end end)
                 end
             end
-        else
-            task.wait(0.5)
-        end
+        else task.wait(0.5) end
     end
 end
 
 local function TeleportToTarget()
     if not isAuthenticated then return end
-    if not hasAccess("Teleport") then Notify("🔒 Acesso Premium/Admin necessário!"); return end
+    if not hasAccess("Teleport") then Notify("🔒 Acesso VIP/MOD necessário!"); return end
     local t = GetClosestEnemy()
     if t and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        if isPremium() then
-            LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame
-        else
-            LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
-        end
+        LP.Character.HumanoidRootPart.CFrame = isPremium() and t.Character.HumanoidRootPart.CFrame or t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
         Notify("✅ Teleportado!")
     end
 end
 
 local function ToggleTelekill(enabled)
     if not isAuthenticated then return end
-    if enabled and not hasAccess("Telekill") then Notify("🔒 Acesso Premium/Admin necessário!"); return end
+    if enabled and not hasAccess("Telekill") then Notify("🔒 Acesso VIP/MOD necessário!"); return end
     TelekillEnabled = enabled
-    if enabled then 
-        Notify(isPremium() and "⚡ Telekill Reforçado!" or "⚡ Telekill Básico!")
-        task.spawn(TelekillLoop) 
-    end
+    if enabled then Notify(isPremium() and "⚡ Telekill Reforçado!" or "⚡ Telekill Básico!"); task.spawn(TelekillLoop) end
 end
 
 function Notify(msg)
@@ -233,7 +361,7 @@ local PremiumBtn = Instance.new("TextButton")
 PremiumBtn.Size = UDim2.new(0.85, 0, 0, 40)
 PremiumBtn.Position = UDim2.new(0.075, 0, 0, 200)
 PremiumBtn.BackgroundColor3 = Color3.fromRGB(180, 130, 30)
-PremiumBtn.Text = "⭐ RESGATAR PREMIUM"
+PremiumBtn.Text = "⭐ RESGATAR VIP"
 PremiumBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 PremiumBtn.Font = Enum.Font.GothamBold
 PremiumBtn.TextSize = 13
@@ -260,8 +388,7 @@ LoginStatus.ZIndex = 201
 LoginStatus.Parent = LoginFrame
 
 local function showStatus(msg, color)
-    LoginStatus.Text = msg
-    LoginStatus.TextColor3 = color
+    LoginStatus.Text = msg; LoginStatus.TextColor3 = color
     task.delay(3, function() if LoginStatus then LoginStatus.Text = "" end end)
 end
 
@@ -284,8 +411,8 @@ Instance.new("UIStroke", Fab).Color = Color3.fromRGB(255, 180, 30)
 
 -- ===== MENU =====
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 320, 0, 380)
-Main.Position = UDim2.new(0.5, -160, 0.5, -190)
+Main.Size = UDim2.new(0, 320, 0, 400)
+Main.Position = UDim2.new(0.5, -160, 0.5, -200)
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
 Main.BorderSizePixel = 0
 Main.Visible = false
@@ -383,29 +510,11 @@ local function Tgl(text, default, feature, callback)
     
     sw.MouseButton1Click:Connect(function()
         if not isAuthenticated then return end
-        if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); return end
+        if feature and not hasAccess(feature) then Notify("🔒 Acesso VIP/MOD necessário!"); return end
         enabled = not enabled
         TweenService:Create(sw, TweenInfo.new(0.2), {BackgroundColor3 = enabled and Color3.fromRGB(80, 130, 255) or Color3.fromRGB(55, 55, 80)}):Play()
         TweenService:Create(knob, TweenInfo.new(0.2), {Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}):Play()
         callback(enabled)
-    end)
-end
-
-local function Btn(text, color, feature, callback)
-    local f = Instance.new("Frame", Scroll)
-    f.Size = UDim2.new(0.94, 0, 0, 34); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
-    f.BorderSizePixel = 0; f.ZIndex = 81
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
-    local b = Instance.new("TextButton", f)
-    b.Size = UDim2.new(0.9, 0, 0, 24); b.Position = UDim2.new(0.5, 0, 0.5, 0)
-    b.AnchorPoint = Vector2.new(0.5, 0.5); b.BackgroundColor3 = color
-    b.Text = text; b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.Font = Enum.Font.GothamBold; b.TextSize = 12; b.BorderSizePixel = 0; b.ZIndex = 82
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    b.MouseButton1Click:Connect(function()
-        if not isAuthenticated then return end
-        if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); return end
-        callback()
     end)
 end
 
@@ -445,7 +554,7 @@ local function Sld(text, min, max, default, feature, callback)
     
     local drag = false
     local function upd(input)
-        if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); drag = false; return end
+        if feature and not hasAccess(feature) then Notify("🔒 Acesso VIP/MOD necessário!"); drag = false; return end
         local pos = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
         local v = math.floor(min + (max - min) * pos)
         val.Text = tostring(v); fill.Size = UDim2.new(pos, 0, 1, 0)
@@ -467,7 +576,6 @@ local function ColorPick(text, default, feature, callback)
     lbl.BackgroundTransparency = 1; lbl.Text = text
     lbl.TextColor3 = Color3.fromRGB(200, 200, 220); lbl.Font = Enum.Font.GothamSemibold
     lbl.TextSize = 11; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 82
-    
     local colors = {Color3.fromRGB(255, 80, 80), Color3.fromRGB(80, 130, 255), Color3.fromRGB(80, 255, 100), Color3.fromRGB(255, 255, 80), Color3.fromRGB(180, 80, 255), Color3.fromRGB(255, 255, 255)}
     for i, color in pairs(colors) do
         local b = Instance.new("TextButton", f)
@@ -477,11 +585,29 @@ local function ColorPick(text, default, feature, callback)
         local st = Instance.new("UIStroke", b)
         st.Color = color == default and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 40, 60)
         b.MouseButton1Click:Connect(function()
-            if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); return end
+            if feature and not hasAccess(feature) then Notify("🔒 Acesso VIP/MOD necessário!"); return end
             callback(color)
             for _, c in pairs(f:GetChildren()) do if c:IsA("TextButton") and c:FindFirstChild("UIStroke") then c.UIStroke.Color = c.BackgroundColor3 == color and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 40, 60) end end
         end)
     end
+end
+
+local function Btn(text, color, feature, callback)
+    local f = Instance.new("Frame", Scroll)
+    f.Size = UDim2.new(0.94, 0, 0, 34); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
+    f.BorderSizePixel = 0; f.ZIndex = 81
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
+    local b = Instance.new("TextButton", f)
+    b.Size = UDim2.new(0.9, 0, 0, 24); b.Position = UDim2.new(0.5, 0, 0.5, 0)
+    b.AnchorPoint = Vector2.new(0.5, 0.5); b.BackgroundColor3 = color
+    b.Text = text; b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.GothamBold; b.TextSize = 12; b.BorderSizePixel = 0; b.ZIndex = 82
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(function()
+        if not isAuthenticated then return end
+        if feature and not hasAccess(feature) then Notify("🔒 Acesso VIP/MOD necessário!"); return end
+        callback()
+    end)
 end
 
 local function Pad()
@@ -489,7 +615,7 @@ local function Pad()
     p.Size = UDim2.new(1, 0, 0, 6); p.BackgroundTransparency = 1
 end
 
--- CONTEÚDO
+-- ===== CONTEÚDO =====
 Sec("🎯 AIMBOT")
 Tgl("Aimbot (Inimigos)", false, "Aimbot", function(v)
     AimbotEnabled = v
@@ -521,6 +647,14 @@ Tgl("Ativar Telekill", false, "Telekill", ToggleTelekill)
 Sec("⚡ MOVIMENTO")
 Btn("IR ATÉ O INIMIGO", Color3.fromRGB(60, 140, 60), "Teleport", TeleportToTarget)
 
+Sec("💨 SPEED HACK (VIP/MOD)")
+Tgl("Speed Hack", false, "SpeedHack", ToggleSpeedHack)
+Sld("Velocidade", 20, 200, SpeedValue, "SpeedHack", SetSpeed)
+
+Sec("🕊️ FLY MOBILE (VIP/MOD)")
+Tgl("Fly", false, "Fly", ToggleFly)
+Sld("Velocidade Fly", 10, 100, FlySpeed, "Fly", function(v) FlySpeed = v end)
+
 Sec("👁 ESP")
 Tgl("ESP", false, "ESP", function(v)
     ESPEnabled = v
@@ -530,6 +664,9 @@ Tgl("Caixa", true, "ESP", function(v) ESPBox = v; for _, d in pairs(ESPObjects) 
 Tgl("Nome", true, "ESP", function(v) ESPName = v; for _, d in pairs(ESPObjects) do if d.NameTag then d.NameTag.Visible = v end end end)
 Tgl("Distância", true, "ESP", function(v) ESPDistance = v; for _, d in pairs(ESPObjects) do if d.DistTag then d.DistTag.Visible = v end end end)
 Tgl("Tracer", true, "ESP", function(v) ESPTracer = v; for _, d in pairs(ESPObjects) do if d.Tracer then d.Tracer.Visible = v end end end)
+
+Sec("🎯 NO RECOIL (VIP/MOD)")
+Tgl("No Recoil", false, "NoRecoil", ToggleNoRecoil)
 
 Sec("🎨 COR ESP")
 ColorPick("Cor ESP", ESPColor, "ESPColor", function(c)
@@ -562,13 +699,19 @@ end)
 -- ===== LOGIN =====
 LoginBtn.MouseButton1Click:Connect(function()
     local key = KeyInput.Text
+    
     if key == "" then showStatus("❌ Digite uma Key!", Color3.fromRGB(255, 80, 80)); return end
+    
     local valid, tier = checkKey(key)
+    
     if valid then
         isAuthenticated = true; currentKey = key
         showStatus("✅ " .. tier .. " | Bem-vindo!", Color3.fromRGB(80, 255, 100))
         task.wait(1); LoginFrame:Destroy(); Fab.Visible = true
         Notify("✅ JK " .. tier .. " ATIVADO!")
+        
+        if flyUpBtn then setupFlyButton(flyUpBtn, 1) end
+        if flyDownBtn then setupFlyButton(flyDownBtn, -1) end
         
         -- AIMBOT
         RunService.RenderStepped:Connect(function()
@@ -596,10 +739,21 @@ LoginBtn.MouseButton1Click:Connect(function()
                 end
             end
             if closest then
-                if isPremium() then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Position)
-                else
-                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness)
+                if isPremium() then Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Position)
+                else Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness) end
+            end
+        end)
+        
+        -- No Recoil
+        RunService.RenderStepped:Connect(function()
+            if NoRecoilEnabled and LP.Character then
+                for _, item in pairs(LP.Character:GetChildren()) do
+                    if item:IsA("Tool") then
+                        pcall(function()
+                            if item:FindFirstChild("Recoil") then item.Recoil:Destroy() end
+                            if item:FindFirstChild("Spread") then item.Spread:Destroy() end
+                        end)
+                    end
                 end
             end
         end)

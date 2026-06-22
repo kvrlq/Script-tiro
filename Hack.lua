@@ -1,4 +1,4 @@
--- KR0W SCRIPTS - Sistema de Key com Permissões (Sem Cadeados)
+-- JK SCRIPTS - Free (Fraco) vs Premium/Admin (Reforçado)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,22 +9,24 @@ local Camera = workspace.CurrentCamera
 repeat task.wait() until LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
 local LP = LocalPlayer
 
-print("✅ KR0W SCRIPTS INICIANDO...")
+print("✅ JK SCRIPTS INICIANDO...")
 
--- ===== SISTEMA DE KEY COM PERMISSÕES =====
+-- ===== SISTEMA DE KEY =====
 local keys = {
-    ["krovip"] = {tier = "Premium", features = {"Aimbot", "ESP", "Telekill", "Pull", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
-    ["Jk"] = {tier = "Admin", features = {"Aimbot", "ESP", "Telekill", "Pull", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
-    ["free"] = {tier = "Free", features = {"Aimbot", "ESP"}},
+    ["SCRIPT-VIPJK"] = {tier = "Premium", features = {"Aimbot", "ESP", "Telekill", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
+    ["JK-ADMIN"] = {tier = "Admin", features = {"Aimbot", "ESP", "Telekill", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
+    ["JKFREE"] = {tier = "Free", features = {"Aimbot", "ESP"}},
 }
 
 local isAuthenticated = false
 local currentKey = ""
 local userFeatures = {}
+local userTier = ""
 
 local function checkKey(key)
     if keys[key] then
         userFeatures = keys[key].features
+        userTier = keys[key].tier
         return true, keys[key].tier
     end
     return false, nil
@@ -32,10 +34,12 @@ end
 
 local function hasAccess(feature)
     if not isAuthenticated then return false end
-    for _, f in pairs(userFeatures) do
-        if f == feature then return true end
-    end
+    for _, f in pairs(userFeatures) do if f == feature then return true end end
     return false
+end
+
+local function isPremium()
+    return userTier == "Premium" or userTier == "Admin"
 end
 
 -- Variáveis
@@ -56,18 +60,16 @@ local FOVCircle = nil
 local ESPObjects = {}
 local FOVHidden = false
 local TelekillEnabled = false
-local PullEnabled = false
-local PullTargetPlayer = nil
 
 -- Criar GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "KR0WScripts"
+gui.Name = "JKSscripts"
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.IgnoreGuiInset = true
 gui.Parent = LP.PlayerGui
 
--- Funções básicas
+-- Funções
 local function IsEnemy(p)
     if not p or p == LP then return false end
     if not p.Character then return false end
@@ -78,61 +80,55 @@ end
 
 local function GetHitPart(char)
     if not char then return nil end
-    if HitPart == "Head" then return char:FindFirstChild("Head") end
-    if HitPart == "HumanoidRootPart" then return char:FindFirstChild("HumanoidRootPart") end
-    return char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head")
+    local head = char:FindFirstChild("Head")
+    if head then return head end
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
 end
 
 local function GetClosestEnemy()
-    if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return nil end
+    if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return nil, math.huge end
     local best, bestDist = nil, math.huge
     local myPos = LP.Character.HumanoidRootPart.Position
+    local maxDist = isPremium() and math.huge or 100
+    
     for _, p in pairs(Players:GetPlayers()) do
         if IsEnemy(p) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
             local d = (myPos - p.Character.HumanoidRootPart.Position).Magnitude
-            if d < bestDist then best = p; bestDist = d end
+            if d < bestDist and d <= maxDist then best = p; bestDist = d end
         end
     end
-    return best
+    return best, bestDist
 end
 
+-- TELEKILL (APENAS PREMIUM)
 local function TelekillLoop()
     while TelekillEnabled and isAuthenticated and hasAccess("Telekill") do
-        task.wait(0.05)
+        task.wait(isPremium() and 0.001 or 0.1)
         if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then task.wait(0.5); continue end
         local target = GetClosestEnemy()
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             LP.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
-        else task.wait(0.5) end
+            if isPremium() then
+                local tool = nil
+                if LP.Backpack then
+                    for _, item in pairs(LP.Backpack:GetChildren()) do
+                        if item:IsA("Tool") then tool = item; break end
+                    end
+                end
+                if not tool and LP.Character then
+                    for _, item in pairs(LP.Character:GetChildren()) do
+                        if item:IsA("Tool") then tool = item; break end
+                    end
+                end
+                if tool then
+                    if tool.Parent == LP.Backpack then LP.Character.Humanoid:EquipTool(tool) end
+                    pcall(function() tool:Activate(); task.wait(0.05); if tool.Parent then tool:Deactivate() end end)
+                end
+            end
+        else
+            task.wait(0.5)
+        end
     end
-end
-
-local function PullLoop()
-    while PullEnabled and PullTargetPlayer and isAuthenticated and hasAccess("Pull") do
-        task.wait(0.05)
-        if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then PullEnabled = false; PullTargetPlayer = nil; break end
-        local target = PullTargetPlayer
-        if not target or not target.Parent or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then PullEnabled = false; PullTargetPlayer = nil; break end
-        if not IsEnemy(target) then PullEnabled = false; PullTargetPlayer = nil; break end
-        local myPos = LP.Character.HumanoidRootPart.Position
-        target.Character.HumanoidRootPart.CFrame = CFrame.new(myPos + Vector3.new(0, 0, -3))
-        local humanoid = target.Character:FindFirstChild("Humanoid")
-        if humanoid then humanoid.WalkSpeed = 0; humanoid.JumpPower = 0; humanoid.Sit = true end
-    end
-    if PullTargetPlayer and PullTargetPlayer.Character then
-        local humanoid = PullTargetPlayer.Character:FindFirstChild("Humanoid")
-        if humanoid then humanoid.WalkSpeed = 16; humanoid.JumpPower = 50; humanoid.Sit = false end
-    end
-end
-
-local function PullTarget()
-    if not isAuthenticated then return end
-    if not hasAccess("Pull") then Notify("🔒 Acesso Premium/Admin necessário!"); return end
-    local target = GetClosestEnemy()
-    if not target then return end
-    if PullEnabled then PullEnabled = false; PullTargetPlayer = nil; return end
-    PullTargetPlayer = target; PullEnabled = true
-    task.spawn(PullLoop)
 end
 
 local function TeleportToTarget()
@@ -140,7 +136,12 @@ local function TeleportToTarget()
     if not hasAccess("Teleport") then Notify("🔒 Acesso Premium/Admin necessário!"); return end
     local t = GetClosestEnemy()
     if t and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame
+        if isPremium() then
+            LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame
+        else
+            LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+        end
+        Notify("✅ Teleportado!")
     end
 end
 
@@ -148,7 +149,10 @@ local function ToggleTelekill(enabled)
     if not isAuthenticated then return end
     if enabled and not hasAccess("Telekill") then Notify("🔒 Acesso Premium/Admin necessário!"); return end
     TelekillEnabled = enabled
-    if enabled then task.spawn(TelekillLoop) end
+    if enabled then 
+        Notify(isPremium() and "⚡ Telekill Reforçado!" or "⚡ Telekill Básico!")
+        task.spawn(TelekillLoop) 
+    end
 end
 
 function Notify(msg)
@@ -189,7 +193,7 @@ local LoginTitle = Instance.new("TextLabel")
 LoginTitle.Size = UDim2.new(1, 0, 0, 60)
 LoginTitle.Position = UDim2.new(0, 0, 0, 15)
 LoginTitle.BackgroundTransparency = 1
-LoginTitle.Text = "🦅 KR0W SCRIPTS\nDIGITE SUA KEY"
+LoginTitle.Text = "🦅 JK SCRIPTS\nDIGITE SUA KEY"
 LoginTitle.TextColor3 = Color3.fromRGB(100, 150, 255)
 LoginTitle.Font = Enum.Font.GothamBlack
 LoginTitle.TextSize = 20
@@ -225,7 +229,6 @@ LoginBtn.ZIndex = 201
 LoginBtn.Parent = LoginFrame
 Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 8)
 
--- ===== BOTÃO RESGATAR PREMIUM =====
 local PremiumBtn = Instance.new("TextButton")
 PremiumBtn.Size = UDim2.new(0.85, 0, 0, 40)
 PremiumBtn.Position = UDim2.new(0.075, 0, 0, 200)
@@ -240,22 +243,9 @@ PremiumBtn.Parent = LoginFrame
 Instance.new("UICorner", PremiumBtn).CornerRadius = UDim.new(0, 8)
 Instance.new("UIStroke", PremiumBtn).Color = Color3.fromRGB(255, 200, 50)
 
--- Ao clicar, abre o Discord
 PremiumBtn.MouseButton1Click:Connect(function()
-    -- Tenta abrir o link do Discord
-    pcall(function()
-        if syn and syn.request then
-            -- Para alguns executores
-            syn.request({
-                Url = "https://discord.gg/RYC2jGsgDc",
-                Method = "GET"
-            })
-        end
-    end)
-    
-    -- Mostra o link na notificação
     Notify("🌟 Discord: discord.gg/RYC2jGsgDc")
-    showStatus("⭐ Link copiado! Cole no navegador", Color3.fromRGB(255, 200, 50))
+    showStatus("⭐ Link: discord.gg/RYC2jGsgDc", Color3.fromRGB(255, 200, 50))
 end)
 
 local LoginStatus = Instance.new("TextLabel")
@@ -272,9 +262,7 @@ LoginStatus.Parent = LoginFrame
 local function showStatus(msg, color)
     LoginStatus.Text = msg
     LoginStatus.TextColor3 = color
-    task.delay(3, function()
-        if LoginStatus then LoginStatus.Text = "" end
-    end)
+    task.delay(3, function() if LoginStatus then LoginStatus.Text = "" end end)
 end
 
 -- ===== BOTÃO FLUTUANTE =====
@@ -296,8 +284,8 @@ Instance.new("UIStroke", Fab).Color = Color3.fromRGB(255, 180, 30)
 
 -- ===== MENU =====
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 320, 0, 400)
-Main.Position = UDim2.new(0.5, -160, 0.5, -200)
+Main.Size = UDim2.new(0, 320, 0, 380)
+Main.Position = UDim2.new(0.5, -160, 0.5, -190)
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
 Main.BorderSizePixel = 0
 Main.Visible = false
@@ -320,7 +308,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(0.7, 0, 1, 0)
 TitleLabel.Position = UDim2.new(0.05, 0, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "🦅 KR0W SCRIPTS"
+TitleLabel.Text = "🦅 JK SCRIPTS"
 TitleLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextSize = 16
@@ -357,7 +345,7 @@ List.Padding = UDim.new(0, 4)
 List.HorizontalAlignment = Enum.HorizontalAlignment.Center
 List.Parent = Scroll
 
--- Componentes UI
+-- Componentes
 local function Sec(t)
     local f = Instance.new("Frame", Scroll)
     f.Size = UDim2.new(0.94, 0, 0, 20); f.BackgroundTransparency = 1; f.ZIndex = 81
@@ -395,10 +383,7 @@ local function Tgl(text, default, feature, callback)
     
     sw.MouseButton1Click:Connect(function()
         if not isAuthenticated then return end
-        if feature and not hasAccess(feature) then
-            Notify("🔒 Acesso Premium/Admin necessário!")
-            return
-        end
+        if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); return end
         enabled = not enabled
         TweenService:Create(sw, TweenInfo.new(0.2), {BackgroundColor3 = enabled and Color3.fromRGB(80, 130, 255) or Color3.fromRGB(55, 55, 80)}):Play()
         TweenService:Create(knob, TweenInfo.new(0.2), {Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}):Play()
@@ -419,10 +404,7 @@ local function Btn(text, color, feature, callback)
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
     b.MouseButton1Click:Connect(function()
         if not isAuthenticated then return end
-        if feature and not hasAccess(feature) then
-            Notify("🔒 Acesso Premium/Admin necessário!")
-            return
-        end
+        if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); return end
         callback()
     end)
 end
@@ -463,11 +445,7 @@ local function Sld(text, min, max, default, feature, callback)
     
     local drag = false
     local function upd(input)
-        if feature and not hasAccess(feature) then
-            Notify("🔒 Acesso Premium/Admin necessário!")
-            drag = false
-            return
-        end
+        if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); drag = false; return end
         local pos = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
         local v = math.floor(min + (max - min) * pos)
         val.Text = tostring(v); fill.Size = UDim2.new(pos, 0, 1, 0)
@@ -499,10 +477,7 @@ local function ColorPick(text, default, feature, callback)
         local st = Instance.new("UIStroke", b)
         st.Color = color == default and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 40, 60)
         b.MouseButton1Click:Connect(function()
-            if feature and not hasAccess(feature) then
-                Notify("🔒 Acesso Premium/Admin necessário!")
-                return
-            end
+            if feature and not hasAccess(feature) then Notify("🔒 Acesso Premium/Admin necessário!"); return end
             callback(color)
             for _, c in pairs(f:GetChildren()) do if c:IsA("TextButton") and c:FindFirstChild("UIStroke") then c.UIStroke.Color = c.BackgroundColor3 == color and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 40, 60) end end
         end)
@@ -545,7 +520,6 @@ Tgl("Ativar Telekill", false, "Telekill", ToggleTelekill)
 
 Sec("⚡ MOVIMENTO")
 Btn("IR ATÉ O INIMIGO", Color3.fromRGB(60, 140, 60), "Teleport", TeleportToTarget)
-Btn("PUXAR INIMIGO", Color3.fromRGB(140, 60, 140), "Pull", PullTarget)
 
 Sec("👁 ESP")
 Tgl("ESP", false, "ESP", function(v)
@@ -569,8 +543,8 @@ ColorPick("Cor ESP", ESPColor, "ESPColor", function(c)
 end)
 
 Sec("⚙️ CONFIGURAÇÕES")
-Sld("FOV", 50, 300, FOVRadius, "Aimbot", function(v) FOVRadius = v; if FOVCircle then FOVCircle.Size = UDim2.new(0, v*2, 0, v*2) end end)
-Sld("Suavidade", 1, 15, Smoothness, "Smoothness", function(v) Smoothness = v end)
+Sld("FOV", 50, isPremium() and 500 or 200, FOVRadius, "Aimbot", function(v) FOVRadius = v; if FOVCircle then FOVCircle.Size = UDim2.new(0, v*2, 0, v*2) end end)
+Sld("Suavidade", 1, isPremium() and 20 or 10, Smoothness, "Smoothness", function(v) Smoothness = v end)
 
 Sec("🛡️ SEGURANÇA")
 Tgl("Team Check", false, "Security", function(v) TeamCheck = v end)
@@ -585,34 +559,23 @@ List:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, List.AbsoluteContentSize.Y + 6)
 end)
 
--- ===== AÇÃO DO BOTÃO LOGIN =====
+-- ===== LOGIN =====
 LoginBtn.MouseButton1Click:Connect(function()
     local key = KeyInput.Text
-    
-    if key == "" then
-        showStatus("❌ Digite uma Key!", Color3.fromRGB(255, 80, 80))
-        return
-    end
-    
+    if key == "" then showStatus("❌ Digite uma Key!", Color3.fromRGB(255, 80, 80)); return end
     local valid, tier = checkKey(key)
-    
     if valid then
-        isAuthenticated = true
-        currentKey = key
+        isAuthenticated = true; currentKey = key
         showStatus("✅ " .. tier .. " | Bem-vindo!", Color3.fromRGB(80, 255, 100))
+        task.wait(1); LoginFrame:Destroy(); Fab.Visible = true
+        Notify("✅ JK " .. tier .. " ATIVADO!")
         
-        task.wait(1)
-        LoginFrame:Destroy()
-        
-        Fab.Visible = true
-        
-        Notify("✅ KR0W " .. tier .. " ATIVADO!")
-        
-        -- Sistemas (Aimbot, ESP, etc.)
+        -- AIMBOT
         RunService.RenderStepped:Connect(function()
             if not isAuthenticated then return end
             if not AimbotEnabled or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
             local closest, dist = nil, math.huge
+            local maxDist = isPremium() and FOVRadius or math.min(FOVRadius, 100)
             for _, p in pairs(Players:GetPlayers()) do
                 if IsEnemy(p) and p.Character then
                     local t = GetHitPart(p.Character)
@@ -626,15 +589,22 @@ LoginBtn.MouseButton1Click:Connect(function()
                             end
                             if vis then
                                 local d = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                                if d < FOVRadius and d < dist then closest = t; dist = d end
+                                if d < maxDist and d < dist then closest = t; dist = d end
                             end
                         end
                     end
                 end
             end
-            if closest then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness) end
+            if closest then
+                if isPremium() then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, closest.Position)
+                else
+                    Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness)
+                end
+            end
         end)
         
+        -- ESP
         local function CreateESP(player)
             if ESPObjects[player] then return end
             local f = Instance.new("Frame", gui); f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.ZIndex = 30
@@ -675,13 +645,12 @@ LoginBtn.MouseButton1Click:Connect(function()
         
         Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() if ESPEnabled and isAuthenticated and IsEnemy(p) then task.wait(0.3); CreateESP(p) end end) end)
         Players.PlayerRemoving:Connect(function(p) if ESPObjects[p] then ESPObjects[p].Frame:Destroy(); ESPObjects[p] = nil end end)
-        
     else
         showStatus("❌ KEY INVÁLIDA!", Color3.fromRGB(255, 80, 80))
     end
 end)
 
--- Clique/Arraste do botão
+-- Clique/Arraste
 local fabDrag, fabStart, fabPos, fabMoved = false, nil, nil, false
 Fab.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -699,7 +668,6 @@ UserInputService.InputChanged:Connect(function(i)
     end
 end)
 
--- Drag menu
 local menuDrag, menuStart, menuPos = false, nil, nil
 Header.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -711,4 +679,4 @@ UserInputService.InputChanged:Connect(function(i)
 end)
 UserInputService.InputEnded:Connect(function() menuDrag = false end)
 
-print("✅✅✅ KR0W SCRIPTS CARREGADO! ✅✅✅")
+print("✅✅✅ JK SCRIPTS CARREGADO! ✅✅✅")

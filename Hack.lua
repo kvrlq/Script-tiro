@@ -1,6 +1,4 @@
--- SCRIPT BOT MOBILE - Telekill Corrigido (Segue o Inimigo)
--- Aimbot + ESP + Ir até Inimigo + Puxar + Esconder FOV + Telekill
-
+-- SCRIPT BOT MOBILE - Sistema de Key Corrigido
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -12,6 +10,25 @@ repeat task.wait() until LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
 local LP = LocalPlayer
 
 print("✅ INICIANDO...")
+
+-- ===== SISTEMA DE KEY =====
+local validKeys = {
+    "SCRIPTADM",
+    "SCRIPT",
+    "SCRIPT1",
+}
+
+local isAuthenticated = false
+local currentKey = ""
+
+local function checkKey(key)
+    for _, validKey in pairs(validKeys) do
+        if key == validKey then
+            return true
+        end
+    end
+    return false
+end
 
 -- Variáveis
 local AimbotEnabled = false
@@ -31,7 +48,10 @@ local FOVCircle = nil
 local ESPObjects = {}
 local FOVHidden = false
 local TelekillEnabled = false
+local PullEnabled = false
+local PullTargetPlayer = nil
 
+-- Criar GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "ScriptBot"
 gui.ResetOnSpawn = false
@@ -39,7 +59,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.IgnoreGuiInset = true
 gui.Parent = LP.PlayerGui
 
--- Funções
+-- Funções básicas
 local function IsEnemy(p)
     if not p or p == LP then return false end
     if not p.Character then return false end
@@ -68,61 +88,56 @@ local function GetClosestEnemy()
     return best
 end
 
--- TELEKILL - SEGUE O INIMIGO ATÉ ELE MORRER
 local function TelekillLoop()
-    while TelekillEnabled do
-        task.wait(0.1) -- Atualização rápida para seguir o inimigo
-        
-        if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then
-            task.wait(0.5)
-            continue
-        end
-        
+    while TelekillEnabled and isAuthenticated do
+        task.wait(0.05)
+        if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then task.wait(0.5); continue end
         local target = GetClosestEnemy()
-        
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local myRoot = LP.Character.HumanoidRootPart
-            local targetRoot = target.Character.HumanoidRootPart
-            
-            -- Ficar exatamente na posição do inimigo (segue ele)
-            myRoot.CFrame = targetRoot.CFrame
-            
-            -- Verificar se o inimigo morreu
-            if not IsEnemy(target) then
-                print("💀 " .. target.Name .. " morreu, procurando próximo...")
-                task.wait(0.3) -- Pequena pausa antes de ir para o próximo
-            end
-        else
-            task.wait(0.5)
-        end
+            LP.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+        else task.wait(0.5) end
     end
 end
 
-local function ToggleTelekill(enabled)
-    TelekillEnabled = enabled
-    if enabled then
-        Notify("⚡ TELEKILL ATIVADO!")
-        task.spawn(function()
-            TelekillLoop()
-        end)
-    else
-        Notify("⚡ TELEKILL DESATIVADO!")
+local function PullLoop()
+    while PullEnabled and PullTargetPlayer and isAuthenticated do
+        task.wait(0.05)
+        if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then PullEnabled = false; PullTargetPlayer = nil; break end
+        local target = PullTargetPlayer
+        if not target or not target.Parent or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then PullEnabled = false; PullTargetPlayer = nil; break end
+        if not IsEnemy(target) then PullEnabled = false; PullTargetPlayer = nil; break end
+        local myPos = LP.Character.HumanoidRootPart.Position
+        target.Character.HumanoidRootPart.CFrame = CFrame.new(myPos + Vector3.new(0, 0, -3))
+        local humanoid = target.Character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = 0; humanoid.JumpPower = 0; humanoid.Sit = true end
     end
+    if PullTargetPlayer and PullTargetPlayer.Character then
+        local humanoid = PullTargetPlayer.Character:FindFirstChild("Humanoid")
+        if humanoid then humanoid.WalkSpeed = 16; humanoid.JumpPower = 50; humanoid.Sit = false end
+    end
+end
+
+local function PullTarget()
+    if not isAuthenticated then return end
+    local target = GetClosestEnemy()
+    if not target then return end
+    if PullEnabled then PullEnabled = false; PullTargetPlayer = nil; return end
+    PullTargetPlayer = target; PullEnabled = true
+    task.spawn(PullLoop)
 end
 
 local function TeleportToTarget()
+    if not isAuthenticated then return end
     local t = GetClosestEnemy()
     if t and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
         LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame
     end
 end
 
-local function PullTarget()
-    local t = GetClosestEnemy()
-    if t and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
-        local pos = LP.Character.HumanoidRootPart.Position
-        t.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
-    end
+local function ToggleTelekill(enabled)
+    if not isAuthenticated then return end
+    TelekillEnabled = enabled
+    if enabled then task.spawn(TelekillLoop) end
 end
 
 function Notify(msg)
@@ -146,7 +161,79 @@ function Notify(msg)
     task.delay(2, function() if n.Parent then n:Destroy() end end)
 end
 
--- Botão Flutuante
+-- ===== TELA DE LOGIN =====
+local LoginFrame = Instance.new("Frame")
+LoginFrame.Size = UDim2.new(0, 300, 0, 250)
+LoginFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
+LoginFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
+LoginFrame.BorderSizePixel = 0
+LoginFrame.Visible = true
+LoginFrame.Active = true
+LoginFrame.ZIndex = 200
+LoginFrame.Parent = gui
+Instance.new("UICorner", LoginFrame).CornerRadius = UDim.new(0, 14)
+Instance.new("UIStroke", LoginFrame).Color = Color3.fromRGB(80, 130, 255)
+
+local LoginTitle = Instance.new("TextLabel")
+LoginTitle.Size = UDim2.new(1, 0, 0, 50)
+LoginTitle.Position = UDim2.new(0, 0, 0, 10)
+LoginTitle.BackgroundTransparency = 1
+LoginTitle.Text = "🔐 SCRIPT BOT\nDIGITE SUA KEY"
+LoginTitle.TextColor3 = Color3.fromRGB(100, 150, 255)
+LoginTitle.Font = Enum.Font.GothamBlack
+LoginTitle.TextSize = 18
+LoginTitle.ZIndex = 201
+LoginTitle.Parent = LoginFrame
+
+local KeyInput = Instance.new("TextBox")
+KeyInput.Size = UDim2.new(0.85, 0, 0, 40)
+KeyInput.Position = UDim2.new(0.075, 0, 0, 80)
+KeyInput.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
+KeyInput.PlaceholderText = "Digite a Key..."
+KeyInput.PlaceholderColor3 = Color3.fromRGB(100, 100, 120)
+KeyInput.Text = ""
+KeyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+KeyInput.Font = Enum.Font.GothamMedium
+KeyInput.TextSize = 14
+KeyInput.BorderSizePixel = 0
+KeyInput.ZIndex = 201
+KeyInput.Parent = LoginFrame
+Instance.new("UICorner", KeyInput).CornerRadius = UDim.new(0, 8)
+Instance.new("UIStroke", KeyInput).Color = Color3.fromRGB(80, 130, 255)
+
+local LoginBtn = Instance.new("TextButton")
+LoginBtn.Size = UDim2.new(0.85, 0, 0, 40)
+LoginBtn.Position = UDim2.new(0.075, 0, 0, 135)
+LoginBtn.BackgroundColor3 = Color3.fromRGB(60, 130, 60)
+LoginBtn.Text = "🔓 ATIVAR SCRIPT"
+LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoginBtn.Font = Enum.Font.GothamBold
+LoginBtn.TextSize = 14
+LoginBtn.BorderSizePixel = 0
+LoginBtn.ZIndex = 201
+LoginBtn.Parent = LoginFrame
+Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 8)
+
+local LoginStatus = Instance.new("TextLabel")
+LoginStatus.Size = UDim2.new(1, 0, 0, 30)
+LoginStatus.Position = UDim2.new(0, 0, 0, 185)
+LoginStatus.BackgroundTransparency = 1
+LoginStatus.Text = ""
+LoginStatus.TextColor3 = Color3.fromRGB(255, 255, 255)
+LoginStatus.Font = Enum.Font.GothamSemibold
+LoginStatus.TextSize = 12
+LoginStatus.ZIndex = 201
+LoginStatus.Parent = LoginFrame
+
+local function showStatus(msg, color)
+    LoginStatus.Text = msg
+    LoginStatus.TextColor3 = color
+    task.delay(3, function()
+        if LoginStatus then LoginStatus.Text = "" end
+    end)
+end
+
+-- ===== BOTÃO FLUTUANTE =====
 local Fab = Instance.new("TextButton")
 Fab.Size = UDim2.new(0, 50, 0, 50)
 Fab.Position = UDim2.new(0.8, 0, 0.7, 0)
@@ -156,14 +243,16 @@ Fab.TextColor3 = Color3.fromRGB(80, 130, 255)
 Fab.Font = Enum.Font.GothamBlack
 Fab.TextSize = 24
 Fab.BorderSizePixel = 0
-Fab.Visible = true
+Fab.Visible = false
 Fab.Active = true
 Fab.ZIndex = 100
 Fab.Parent = gui
 Instance.new("UICorner", Fab).CornerRadius = UDim.new(0, 25)
 Instance.new("UIStroke", Fab).Color = Color3.fromRGB(80, 130, 255)
 
--- Menu
+print("✅ Botão criado (oculto)")
+
+-- ===== MENU =====
 local Main = Instance.new("Frame")
 Main.Size = UDim2.new(0, 320, 0, 400)
 Main.Position = UDim2.new(0.5, -160, 0.5, -200)
@@ -226,11 +315,10 @@ List.Padding = UDim.new(0, 4)
 List.HorizontalAlignment = Enum.HorizontalAlignment.Center
 List.Parent = Scroll
 
--- Componentes
+-- Componentes UI
 local function Sec(t)
     local f = Instance.new("Frame", Scroll)
-    f.Size = UDim2.new(0.94, 0, 0, 20)
-    f.BackgroundTransparency = 1; f.ZIndex = 81
+    f.Size = UDim2.new(0.94, 0, 0, 20); f.BackgroundTransparency = 1; f.ZIndex = 81
     local l = Instance.new("TextLabel", f)
     l.Size = UDim2.new(1, 0, 1, 0); l.BackgroundTransparency = 1
     l.Text = t; l.TextColor3 = Color3.fromRGB(140, 140, 170)
@@ -239,8 +327,8 @@ end
 
 local function Tgl(text, default, callback)
     local f = Instance.new("Frame", Scroll)
-    f.Size = UDim2.new(0.94, 0, 0, 34)
-    f.BackgroundColor3 = Color3.fromRGB(28, 28, 48); f.BorderSizePixel = 0; f.ZIndex = 81
+    f.Size = UDim2.new(0.94, 0, 0, 34); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
+    f.BorderSizePixel = 0; f.ZIndex = 81
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
     
     local lbl = Instance.new("TextLabel", f)
@@ -264,6 +352,7 @@ local function Tgl(text, default, callback)
     local enabled = default
     
     sw.MouseButton1Click:Connect(function()
+        if not isAuthenticated then return end
         enabled = not enabled
         TweenService:Create(sw, TweenInfo.new(0.2), {BackgroundColor3 = enabled and Color3.fromRGB(80, 130, 255) or Color3.fromRGB(55, 55, 80)}):Play()
         TweenService:Create(knob, TweenInfo.new(0.2), {Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}):Play()
@@ -282,7 +371,9 @@ local function Btn(text, color, callback)
     b.Text = text; b.TextColor3 = Color3.fromRGB(255, 255, 255)
     b.Font = Enum.Font.GothamBold; b.TextSize = 12; b.BorderSizePixel = 0; b.ZIndex = 82
     Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    b.MouseButton1Click:Connect(callback)
+    b.MouseButton1Click:Connect(function()
+        if isAuthenticated then callback() end
+    end)
 end
 
 local function Sld(text, min, max, default, callback)
@@ -326,7 +417,6 @@ local function Sld(text, min, max, default, callback)
         val.Text = tostring(v); fill.Size = UDim2.new(pos, 0, 1, 0)
         thumb.Position = UDim2.new(pos, -8, 0.5, -8); callback(v)
     end
-    
     thumb.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then drag = true end end)
     bg.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then drag = true; upd(i) end end)
     UserInputService.InputChanged:Connect(function(i) if drag then upd(i) end end)
@@ -389,10 +479,8 @@ Tgl("Esconder FOV", false, function(v)
     if FOVCircle and FOVCircle:FindFirstChild("UIStroke") then FOVCircle.UIStroke.Transparency = v and 1 or 0 end
 end)
 
-Sec("⚡ TELEKILL (Segue o Inimigo)")
-Tgl("Ativar Telekill", false, function(v)
-    ToggleTelekill(v)
-end)
+Sec("⚡ TELEKILL")
+Tgl("Ativar Telekill", false, ToggleTelekill)
 
 Sec("⚡ MOVIMENTO")
 Btn("IR ATÉ O INIMIGO", Color3.fromRGB(60, 140, 60), TeleportToTarget)
@@ -436,6 +524,108 @@ List:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
     Scroll.CanvasSize = UDim2.new(0, 0, 0, List.AbsoluteContentSize.Y + 6)
 end)
 
+-- ===== AÇÃO DO BOTÃO LOGIN =====
+LoginBtn.MouseButton1Click:Connect(function()
+    local key = KeyInput.Text
+    
+    if key == "" then
+        showStatus("❌ Digite uma Key!", Color3.fromRGB(255, 80, 80))
+        return
+    end
+    
+    if checkKey(key) then
+        isAuthenticated = true
+        currentKey = key
+        showStatus("✅ KEY VÁLIDA!", Color3.fromRGB(80, 255, 100))
+        
+        print("✅ Key válida: " .. key)
+        
+        -- Destruir tela de login
+        task.wait(1)
+        LoginFrame:Destroy()
+        
+        -- ✅ MOSTRAR BOTÃO ⚡
+        Fab.Visible = true
+        print("✅ Botão ⚡ agora visível!")
+        
+        Notify("✅ SCRIPT ATIVADO!")
+        
+        -- Iniciar sistemas
+        -- Aimbot
+        RunService.RenderStepped:Connect(function()
+            if not isAuthenticated then return end
+            if not AimbotEnabled or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
+            local closest, dist = nil, math.huge
+            for _, p in pairs(Players:GetPlayers()) do
+                if IsEnemy(p) and p.Character then
+                    local t = GetHitPart(p.Character)
+                    if t then
+                        local pos, vis = Camera:WorldToViewportPoint(t.Position)
+                        if vis then
+                            if WallcheckEnabled then
+                                local ray = Ray.new(Camera.CFrame.Position, (t.Position - Camera.CFrame.Position).Unit * 500)
+                                local hit = workspace:FindPartOnRay(ray, LP.Character)
+                                if not hit or not hit:IsDescendantOf(p.Character) then vis = false end
+                            end
+                            if vis then
+                                local d = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
+                                if d < FOVRadius and d < dist then closest = t; dist = d end
+                            end
+                        end
+                    end
+                end
+            end
+            if closest then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness) end
+        end)
+        
+        -- ESP
+        local function CreateESP(player)
+            if ESPObjects[player] then return end
+            local f = Instance.new("Frame", gui); f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.ZIndex = 30
+            local box = Instance.new("Frame", f); box.Size = UDim2.new(1, 0, 1, 0); box.BackgroundTransparency = 1; box.Visible = ESPBox; box.ZIndex = 30; Instance.new("UIStroke", box).Color = ESPColor
+            local nm = Instance.new("TextLabel", f); nm.Size = UDim2.new(1, 0, 0, 14); nm.Position = UDim2.new(0, 0, 0, -18); nm.BackgroundTransparency = 1; nm.Text = player.Name; nm.TextColor3 = ESPColor; nm.Font = Enum.Font.GothamBold; nm.TextSize = 9; nm.Visible = ESPName; nm.ZIndex = 31
+            local dst = Instance.new("TextLabel", f); dst.Size = UDim2.new(1, 0, 0, 14); dst.Position = UDim2.new(0, 0, 1, 2); dst.BackgroundTransparency = 1; dst.Text = "0m"; dst.TextColor3 = ESPColor; dst.Font = Enum.Font.GothamSemibold; dst.TextSize = 8; dst.Visible = ESPDistance; dst.ZIndex = 31
+            local tr = Instance.new("Frame", f); tr.BackgroundColor3 = ESPColor; tr.BorderSizePixel = 0; tr.Visible = ESPTracer; tr.ZIndex = 29; tr.AnchorPoint = Vector2.new(0.5, 0)
+            ESPObjects[player] = {Frame = f, Box = box, NameTag = nm, DistTag = dst, Tracer = tr}
+        end
+        
+        local function UpdateESP()
+            if not ESPEnabled or not isAuthenticated then return end
+            local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+            for player, data in pairs(ESPObjects) do
+                if player and player.Parent and player.Character and IsEnemy(player) then
+                    local root = player.Character:FindFirstChild("HumanoidRootPart"); local head = player.Character:FindFirstChild("Head")
+                    if root and head then
+                        local rp, ro = Camera:WorldToViewportPoint(root.Position); local hp, ho = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
+                        if ro and ho then
+                            local h = math.abs(rp.Y - hp.Y) * 1.7; local w = h * 0.6
+                            data.Frame.Visible = true; data.Frame.Position = UDim2.new(0, hp.X - w/2, 0, hp.Y); data.Frame.Size = UDim2.new(0, w, 0, h)
+                            if ESPTracer then local bx, by = hp.X, hp.Y + h; local th = center.Y - by; data.Tracer.Size = UDim2.new(0, 1, 0, math.abs(th)); data.Tracer.Position = UDim2.new(0.5, 0, 0, -th); data.Tracer.Rotation = math.deg(math.atan2(center.X - bx, th)) end
+                            if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then data.DistTag.Text = string.format("%.0fm", (LP.Character.HumanoidRootPart.Position - root.Position).Magnitude) end
+                        else data.Frame.Visible = false end
+                    end
+                elseif data.Frame then data.Frame.Visible = false end
+            end
+        end
+        
+        RunService.RenderStepped:Connect(function()
+            if not isAuthenticated then return end
+            if ESPEnabled then
+                UpdateESP()
+                for _, p in pairs(Players:GetPlayers()) do if p ~= LP and p.Character and IsEnemy(p) and not ESPObjects[p] then CreateESP(p) end end
+                for p, _ in pairs(ESPObjects) do if not p.Parent then ESPObjects[p].Frame:Destroy(); ESPObjects[p] = nil end end
+            end
+        end)
+        
+        Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() if ESPEnabled and isAuthenticated and IsEnemy(p) then task.wait(0.3); CreateESP(p) end end) end)
+        Players.PlayerRemoving:Connect(function(p) if ESPObjects[p] then ESPObjects[p].Frame:Destroy(); ESPObjects[p] = nil end end)
+        
+    else
+        showStatus("❌ KEY INVÁLIDA!", Color3.fromRGB(255, 80, 80))
+        print("❌ Key inválida: " .. key)
+    end
+end)
+
 -- Clique/Arraste do botão
 local fabDrag, fabStart, fabPos, fabMoved = false, nil, nil, false
 Fab.InputBegan:Connect(function(i)
@@ -454,7 +644,7 @@ UserInputService.InputChanged:Connect(function(i)
     end
 end)
 
--- Drag do menu
+-- Drag menu
 local menuDrag, menuStart, menuPos = false, nil, nil
 Header.InputBegan:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -466,72 +656,6 @@ UserInputService.InputChanged:Connect(function(i)
 end)
 UserInputService.InputEnded:Connect(function() menuDrag = false end)
 
--- Aimbot
-RunService.RenderStepped:Connect(function()
-    if not AimbotEnabled or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
-    local closest, dist = nil, math.huge
-    for _, p in pairs(Players:GetPlayers()) do
-        if IsEnemy(p) and p.Character then
-            local t = GetHitPart(p.Character)
-            if t then
-                local pos, vis = Camera:WorldToViewportPoint(t.Position)
-                if vis then
-                    if WallcheckEnabled then
-                        local ray = Ray.new(Camera.CFrame.Position, (t.Position - Camera.CFrame.Position).Unit * 500)
-                        local hit = workspace:FindPartOnRay(ray, LP.Character)
-                        if not hit or not hit:IsDescendantOf(p.Character) then vis = false end
-                    end
-                    if vis then
-                        local d = (Vector2.new(pos.X, pos.Y) - Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)).Magnitude
-                        if d < FOVRadius and d < dist then closest = t; dist = d end
-                    end
-                end
-            end
-        end
-    end
-    if closest then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness) end
-end)
-
--- ESP
-local function CreateESP(player)
-    if ESPObjects[player] then return end
-    local f = Instance.new("Frame", gui); f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.ZIndex = 30
-    local box = Instance.new("Frame", f); box.Size = UDim2.new(1, 0, 1, 0); box.BackgroundTransparency = 1; box.Visible = ESPBox; box.ZIndex = 30; Instance.new("UIStroke", box).Color = ESPColor
-    local nm = Instance.new("TextLabel", f); nm.Size = UDim2.new(1, 0, 0, 14); nm.Position = UDim2.new(0, 0, 0, -18); nm.BackgroundTransparency = 1; nm.Text = player.Name; nm.TextColor3 = ESPColor; nm.Font = Enum.Font.GothamBold; nm.TextSize = 9; nm.Visible = ESPName; nm.ZIndex = 31
-    local dst = Instance.new("TextLabel", f); dst.Size = UDim2.new(1, 0, 0, 14); dst.Position = UDim2.new(0, 0, 1, 2); dst.BackgroundTransparency = 1; dst.Text = "0m"; dst.TextColor3 = ESPColor; dst.Font = Enum.Font.GothamSemibold; dst.TextSize = 8; dst.Visible = ESPDistance; dst.ZIndex = 31
-    local tr = Instance.new("Frame", f); tr.BackgroundColor3 = ESPColor; tr.BorderSizePixel = 0; tr.Visible = ESPTracer; tr.ZIndex = 29; tr.AnchorPoint = Vector2.new(0.5, 0)
-    ESPObjects[player] = {Frame = f, Box = box, NameTag = nm, DistTag = dst, Tracer = tr}
-end
-
-local function UpdateESP()
-    if not ESPEnabled then return end
-    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-    for player, data in pairs(ESPObjects) do
-        if player and player.Parent and player.Character and IsEnemy(player) then
-            local root = player.Character:FindFirstChild("HumanoidRootPart"); local head = player.Character:FindFirstChild("Head")
-            if root and head then
-                local rp, ro = Camera:WorldToViewportPoint(root.Position); local hp, ho = Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0))
-                if ro and ho then
-                    local h = math.abs(rp.Y - hp.Y) * 1.7; local w = h * 0.6
-                    data.Frame.Visible = true; data.Frame.Position = UDim2.new(0, hp.X - w/2, 0, hp.Y); data.Frame.Size = UDim2.new(0, w, 0, h)
-                    if ESPTracer then local bx, by = hp.X, hp.Y + h; local th = center.Y - by; data.Tracer.Size = UDim2.new(0, 1, 0, math.abs(th)); data.Tracer.Position = UDim2.new(0.5, 0, 0, -th); data.Tracer.Rotation = math.deg(math.atan2(center.X - bx, th)) end
-                    if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then data.DistTag.Text = string.format("%.0fm", (LP.Character.HumanoidRootPart.Position - root.Position).Magnitude) end
-                else data.Frame.Visible = false end
-            end
-        elseif data.Frame then data.Frame.Visible = false end
-    end
-end
-
-RunService.RenderStepped:Connect(function()
-    if ESPEnabled then
-        UpdateESP()
-        for _, p in pairs(Players:GetPlayers()) do if p ~= LP and p.Character and IsEnemy(p) and not ESPObjects[p] then CreateESP(p) end end
-        for p, _ in pairs(ESPObjects) do if not p.Parent then ESPObjects[p].Frame:Destroy(); ESPObjects[p] = nil end end
-    end
-end)
-
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() if ESPEnabled and IsEnemy(p) then task.wait(0.3); CreateESP(p) end end) end)
-Players.PlayerRemoving:Connect(function(p) if ESPObjects[p] then ESPObjects[p].Frame:Destroy(); ESPObjects[p] = nil end end)
-
 print("✅✅✅ SCRIPT CARREGADO! ✅✅✅")
-Notify("✅ SCRIPT CARREGADO!")
+print("🔐 Tela de login visível")
+print("Keys válidas: SCRIPTBOT-12345, SCRIPTBOT-ADMIN, SCRIPTBOT-FREE")

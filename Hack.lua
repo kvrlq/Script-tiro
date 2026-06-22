@@ -1,4 +1,4 @@
--- SCRIPT BOT MOBILE - Sistema de Key Corrigido
+-- KR0W SCRIPTS - Sistema de Key com Permissões Corrigido
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -9,23 +9,31 @@ local Camera = workspace.CurrentCamera
 repeat task.wait() until LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
 local LP = LocalPlayer
 
-print("✅ INICIANDO...")
+print("✅ KR0W SCRIPTS INICIANDO...")
 
--- ===== SISTEMA DE KEY =====
-local validKeys = {
-    "SCRIPTADM",
-    "SCRIPT",
-    "SCRIPT1",
+-- ===== SISTEMA DE KEY COM PERMISSÕES =====
+local keys = {
+    ["pago10"] = {tier = "Premium", features = {"Aimbot", "ESP", "Telekill", "Pull", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
+    ["jk"] = {tier = "Admin", features = {"Aimbot", "ESP", "Telekill", "Pull", "Teleport", "HideFOV", "Smoothness", "Security", "FOVColor", "ESPColor"}},
+    ["free"] = {tier = "Free", features = {"Aimbot", "ESP"}}, -- APENAS Aimbot básico e ESP
 }
 
 local isAuthenticated = false
 local currentKey = ""
+local userFeatures = {}
 
 local function checkKey(key)
-    for _, validKey in pairs(validKeys) do
-        if key == validKey then
-            return true
-        end
+    if keys[key] then
+        userFeatures = keys[key].features
+        return true, keys[key].tier
+    end
+    return false, nil
+end
+
+local function hasAccess(feature)
+    if not isAuthenticated then return false end
+    for _, f in pairs(userFeatures) do
+        if f == feature then return true end
     end
     return false
 end
@@ -53,7 +61,7 @@ local PullTargetPlayer = nil
 
 -- Criar GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "ScriptBot"
+gui.Name = "KR0WScripts"
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.IgnoreGuiInset = true
@@ -89,7 +97,7 @@ local function GetClosestEnemy()
 end
 
 local function TelekillLoop()
-    while TelekillEnabled and isAuthenticated do
+    while TelekillEnabled and isAuthenticated and hasAccess("Telekill") do
         task.wait(0.05)
         if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then task.wait(0.5); continue end
         local target = GetClosestEnemy()
@@ -100,7 +108,7 @@ local function TelekillLoop()
 end
 
 local function PullLoop()
-    while PullEnabled and PullTargetPlayer and isAuthenticated do
+    while PullEnabled and PullTargetPlayer and isAuthenticated and hasAccess("Pull") do
         task.wait(0.05)
         if not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then PullEnabled = false; PullTargetPlayer = nil; break end
         local target = PullTargetPlayer
@@ -119,6 +127,7 @@ end
 
 local function PullTarget()
     if not isAuthenticated then return end
+    if not hasAccess("Pull") then Notify("🔒 Premium/Admin apenas!"); return end
     local target = GetClosestEnemy()
     if not target then return end
     if PullEnabled then PullEnabled = false; PullTargetPlayer = nil; return end
@@ -128,6 +137,7 @@ end
 
 local function TeleportToTarget()
     if not isAuthenticated then return end
+    if not hasAccess("Teleport") then Notify("🔒 Premium/Admin apenas!"); return end
     local t = GetClosestEnemy()
     if t and LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") then
         LP.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame
@@ -136,14 +146,15 @@ end
 
 local function ToggleTelekill(enabled)
     if not isAuthenticated then return end
+    if enabled and not hasAccess("Telekill") then Notify("🔒 Premium/Admin apenas!"); return end
     TelekillEnabled = enabled
     if enabled then task.spawn(TelekillLoop) end
 end
 
 function Notify(msg)
     local n = Instance.new("Frame")
-    n.Size = UDim2.new(0, 200, 0, 30)
-    n.Position = UDim2.new(0.5, -100, 0.05, 0)
+    n.Size = UDim2.new(0, 220, 0, 30)
+    n.Position = UDim2.new(0.5, -110, 0.05, 0)
     n.BackgroundColor3 = Color3.fromRGB(20, 20, 35)
     n.BorderSizePixel = 0
     n.ZIndex = 999
@@ -163,8 +174,8 @@ end
 
 -- ===== TELA DE LOGIN =====
 local LoginFrame = Instance.new("Frame")
-LoginFrame.Size = UDim2.new(0, 300, 0, 250)
-LoginFrame.Position = UDim2.new(0.5, -150, 0.5, -125)
+LoginFrame.Size = UDim2.new(0, 300, 0, 270)
+LoginFrame.Position = UDim2.new(0.5, -150, 0.5, -135)
 LoginFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
 LoginFrame.BorderSizePixel = 0
 LoginFrame.Visible = true
@@ -175,19 +186,19 @@ Instance.new("UICorner", LoginFrame).CornerRadius = UDim.new(0, 14)
 Instance.new("UIStroke", LoginFrame).Color = Color3.fromRGB(80, 130, 255)
 
 local LoginTitle = Instance.new("TextLabel")
-LoginTitle.Size = UDim2.new(1, 0, 0, 50)
-LoginTitle.Position = UDim2.new(0, 0, 0, 10)
+LoginTitle.Size = UDim2.new(1, 0, 0, 60)
+LoginTitle.Position = UDim2.new(0, 0, 0, 15)
 LoginTitle.BackgroundTransparency = 1
-LoginTitle.Text = "🔐 SCRIPT BOT\nDIGITE SUA KEY"
+LoginTitle.Text = "🦅 KR0W SCRIPTS\nDIGITE SUA KEY"
 LoginTitle.TextColor3 = Color3.fromRGB(100, 150, 255)
 LoginTitle.Font = Enum.Font.GothamBlack
-LoginTitle.TextSize = 18
+LoginTitle.TextSize = 20
 LoginTitle.ZIndex = 201
 LoginTitle.Parent = LoginFrame
 
 local KeyInput = Instance.new("TextBox")
 KeyInput.Size = UDim2.new(0.85, 0, 0, 40)
-KeyInput.Position = UDim2.new(0.075, 0, 0, 80)
+KeyInput.Position = UDim2.new(0.075, 0, 0, 95)
 KeyInput.BackgroundColor3 = Color3.fromRGB(25, 25, 45)
 KeyInput.PlaceholderText = "Digite a Key..."
 KeyInput.PlaceholderColor3 = Color3.fromRGB(100, 100, 120)
@@ -203,9 +214,9 @@ Instance.new("UIStroke", KeyInput).Color = Color3.fromRGB(80, 130, 255)
 
 local LoginBtn = Instance.new("TextButton")
 LoginBtn.Size = UDim2.new(0.85, 0, 0, 40)
-LoginBtn.Position = UDim2.new(0.075, 0, 0, 135)
+LoginBtn.Position = UDim2.new(0.075, 0, 0, 150)
 LoginBtn.BackgroundColor3 = Color3.fromRGB(60, 130, 60)
-LoginBtn.Text = "🔓 ATIVAR SCRIPT"
+LoginBtn.Text = "🔓 ATIVAR"
 LoginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 LoginBtn.Font = Enum.Font.GothamBold
 LoginBtn.TextSize = 14
@@ -216,7 +227,7 @@ Instance.new("UICorner", LoginBtn).CornerRadius = UDim.new(0, 8)
 
 local LoginStatus = Instance.new("TextLabel")
 LoginStatus.Size = UDim2.new(1, 0, 0, 30)
-LoginStatus.Position = UDim2.new(0, 0, 0, 185)
+LoginStatus.Position = UDim2.new(0, 0, 0, 200)
 LoginStatus.BackgroundTransparency = 1
 LoginStatus.Text = ""
 LoginStatus.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -233,29 +244,27 @@ local function showStatus(msg, color)
     end)
 end
 
--- ===== BOTÃO FLUTUANTE =====
+-- ===== BOTÃO FLUTUANTE 🦅 =====
 local Fab = Instance.new("TextButton")
-Fab.Size = UDim2.new(0, 50, 0, 50)
+Fab.Size = UDim2.new(0, 55, 0, 55)
 Fab.Position = UDim2.new(0.8, 0, 0.7, 0)
 Fab.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-Fab.Text = "⚡"
-Fab.TextColor3 = Color3.fromRGB(80, 130, 255)
+Fab.Text = "🦅"
+Fab.TextColor3 = Color3.fromRGB(255, 200, 50)
 Fab.Font = Enum.Font.GothamBlack
-Fab.TextSize = 24
+Fab.TextSize = 26
 Fab.BorderSizePixel = 0
 Fab.Visible = false
 Fab.Active = true
 Fab.ZIndex = 100
 Fab.Parent = gui
-Instance.new("UICorner", Fab).CornerRadius = UDim.new(0, 25)
-Instance.new("UIStroke", Fab).Color = Color3.fromRGB(80, 130, 255)
-
-print("✅ Botão criado (oculto)")
+Instance.new("UICorner", Fab).CornerRadius = UDim.new(0, 27)
+Instance.new("UIStroke", Fab).Color = Color3.fromRGB(255, 180, 30)
 
 -- ===== MENU =====
 local Main = Instance.new("Frame")
-Main.Size = UDim2.new(0, 320, 0, 400)
-Main.Position = UDim2.new(0.5, -160, 0.5, -200)
+Main.Size = UDim2.new(0, 320, 0, 420)
+Main.Position = UDim2.new(0.5, -160, 0.5, -210)
 Main.BackgroundColor3 = Color3.fromRGB(18, 18, 32)
 Main.BorderSizePixel = 0
 Main.Visible = false
@@ -275,10 +284,10 @@ Header.Parent = Main
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 12)
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+TitleLabel.Size = UDim2.new(0.7, 0, 1, 0)
 TitleLabel.Position = UDim2.new(0.05, 0, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ SCRIPT BOT"
+TitleLabel.Text = "🦅 KR0W SCRIPTS"
 TitleLabel.TextColor3 = Color3.fromRGB(100, 150, 255)
 TitleLabel.Font = Enum.Font.GothamBlack
 TitleLabel.TextSize = 16
@@ -325,17 +334,18 @@ local function Sec(t)
     l.Font = Enum.Font.GothamBold; l.TextSize = 11; l.TextXAlignment = Enum.TextXAlignment.Left; l.ZIndex = 82
 end
 
-local function Tgl(text, default, callback)
+-- Toggle COM cadeado quando bloqueado
+local function Tgl(text, default, feature, callback)
     local f = Instance.new("Frame", Scroll)
     f.Size = UDim2.new(0.94, 0, 0, 34); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
     f.BorderSizePixel = 0; f.ZIndex = 81
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
     
     local lbl = Instance.new("TextLabel", f)
-    lbl.Size = UDim2.new(0.62, 0, 1, 0); lbl.Position = UDim2.new(0.05, 0, 0, 0)
+    lbl.Size = UDim2.new(0.55, 0, 1, 0); lbl.Position = UDim2.new(0.05, 0, 0, 0)
     lbl.BackgroundTransparency = 1; lbl.Text = text
     lbl.TextColor3 = Color3.fromRGB(200, 200, 220); lbl.Font = Enum.Font.GothamSemibold
-    lbl.TextSize = 12; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 82
+    lbl.TextSize = 11; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 82
     
     local sw = Instance.new("TextButton", f)
     sw.Size = UDim2.new(0, 40, 0, 20); sw.Position = UDim2.new(1, -48, 0.5, -10)
@@ -349,10 +359,25 @@ local function Tgl(text, default, callback)
     knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255); knob.BorderSizePixel = 0; knob.ZIndex = 83
     Instance.new("UICorner", knob).CornerRadius = UDim.new(0, 8)
     
+    -- Se NÃO tem acesso, mostrar cadeado e escurecer
+    if feature and not hasAccess(feature) then
+        sw.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+        knob.BackgroundColor3 = Color3.fromRGB(100, 100, 110)
+        local lockLabel = Instance.new("TextLabel", f)
+        lockLabel.Size = UDim2.new(0, 20, 0, 20); lockLabel.Position = UDim2.new(0.62, 0, 0.5, -10)
+        lockLabel.BackgroundTransparency = 1; lockLabel.Text = "🔒"
+        lockLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
+        lockLabel.Font = Enum.Font.GothamBold; lockLabel.TextSize = 12; lockLabel.ZIndex = 84
+    end
+    
     local enabled = default
     
     sw.MouseButton1Click:Connect(function()
         if not isAuthenticated then return end
+        if feature and not hasAccess(feature) then
+            Notify("🔒 Premium/Admin apenas!")
+            return
+        end
         enabled = not enabled
         TweenService:Create(sw, TweenInfo.new(0.2), {BackgroundColor3 = enabled and Color3.fromRGB(80, 130, 255) or Color3.fromRGB(55, 55, 80)}):Play()
         TweenService:Create(knob, TweenInfo.new(0.2), {Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)}):Play()
@@ -360,23 +385,8 @@ local function Tgl(text, default, callback)
     end)
 end
 
-local function Btn(text, color, callback)
-    local f = Instance.new("Frame", Scroll)
-    f.Size = UDim2.new(0.94, 0, 0, 34); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
-    f.BorderSizePixel = 0; f.ZIndex = 81
-    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
-    local b = Instance.new("TextButton", f)
-    b.Size = UDim2.new(0.9, 0, 0, 24); b.Position = UDim2.new(0.5, 0, 0.5, 0)
-    b.AnchorPoint = Vector2.new(0.5, 0.5); b.BackgroundColor3 = color
-    b.Text = text; b.TextColor3 = Color3.fromRGB(255, 255, 255)
-    b.Font = Enum.Font.GothamBold; b.TextSize = 12; b.BorderSizePixel = 0; b.ZIndex = 82
-    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-    b.MouseButton1Click:Connect(function()
-        if isAuthenticated then callback() end
-    end)
-end
-
-local function Sld(text, min, max, default, callback)
+-- Slider COM cadeado quando bloqueado
+local function Sld(text, min, max, default, feature, callback)
     local f = Instance.new("Frame", Scroll)
     f.Size = UDim2.new(0.94, 0, 0, 48); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
     f.BorderSizePixel = 0; f.ZIndex = 81
@@ -394,24 +404,40 @@ local function Sld(text, min, max, default, callback)
     val.TextColor3 = Color3.fromRGB(100, 150, 255); val.Font = Enum.Font.GothamBold
     val.TextSize = 11; val.TextXAlignment = Enum.TextXAlignment.Right; val.ZIndex = 82
     
+    -- Se bloqueado, mostrar cadeado
+    if feature and not hasAccess(feature) then
+        local lockLabel = Instance.new("TextLabel", f)
+        lockLabel.Size = UDim2.new(0, 20, 0, 20); lockLabel.Position = UDim2.new(0.55, 0, 0, 2)
+        lockLabel.BackgroundTransparency = 1; lockLabel.Text = "🔒"
+        lockLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
+        lockLabel.Font = Enum.Font.GothamBold; lockLabel.TextSize = 12; lockLabel.ZIndex = 84
+        val.TextColor3 = Color3.fromRGB(100, 100, 120)
+    end
+    
     local bg = Instance.new("Frame", f)
     bg.Size = UDim2.new(0.9, 0, 0, 4); bg.Position = UDim2.new(0.05, 0, 0, 28)
-    bg.BackgroundColor3 = Color3.fromRGB(50, 50, 75); bg.BorderSizePixel = 0; bg.Active = true; bg.ZIndex = 82
+    bg.BackgroundColor3 = feature and not hasAccess(feature) and Color3.fromRGB(35, 35, 50) or Color3.fromRGB(50, 50, 75)
+    bg.BorderSizePixel = 0; bg.Active = true; bg.ZIndex = 82
     Instance.new("UICorner", bg).CornerRadius = UDim.new(0, 2)
     
     local pct = (default - min) / (max - min)
     local fill = Instance.new("Frame", bg)
-    fill.Size = UDim2.new(pct, 0, 1, 0); fill.BackgroundColor3 = Color3.fromRGB(80, 130, 255)
+    fill.Size = UDim2.new(pct, 0, 1, 0)
+    fill.BackgroundColor3 = feature and not hasAccess(feature) and Color3.fromRGB(50, 50, 65) or Color3.fromRGB(80, 130, 255)
     fill.BorderSizePixel = 0; fill.ZIndex = 83
     
     local thumb = Instance.new("TextButton", bg)
     thumb.Size = UDim2.new(0, 16, 0, 16); thumb.Position = UDim2.new(pct, -8, 0.5, -8)
-    thumb.BackgroundColor3 = Color3.fromRGB(255, 255, 255); thumb.Text = ""
-    thumb.BorderSizePixel = 0; thumb.ZIndex = 84
+    thumb.BackgroundColor3 = feature and not hasAccess(feature) and Color3.fromRGB(80, 80, 90) or Color3.fromRGB(255, 255, 255)
+    thumb.Text = ""; thumb.BorderSizePixel = 0; thumb.ZIndex = 84
     Instance.new("UICorner", thumb).CornerRadius = UDim.new(0, 8)
     
     local drag = false
     local function upd(input)
+        if feature and not hasAccess(feature) then
+            Notify("🔒 Premium/Admin apenas!")
+            return
+        end
         local pos = math.clamp((input.Position.X - bg.AbsolutePosition.X) / bg.AbsoluteSize.X, 0, 1)
         local v = math.floor(min + (max - min) * pos)
         val.Text = tostring(v); fill.Size = UDim2.new(pos, 0, 1, 0)
@@ -423,7 +449,31 @@ local function Sld(text, min, max, default, callback)
     UserInputService.InputEnded:Connect(function() drag = false end)
 end
 
-local function ColorPick(text, default, callback)
+local function Btn(text, color, feature, callback)
+    local f = Instance.new("Frame", Scroll)
+    f.Size = UDim2.new(0.94, 0, 0, 34); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
+    f.BorderSizePixel = 0; f.ZIndex = 81
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 7)
+    
+    local b = Instance.new("TextButton", f)
+    b.Size = UDim2.new(0.9, 0, 0, 24); b.Position = UDim2.new(0.5, 0, 0.5, 0)
+    b.AnchorPoint = Vector2.new(0.5, 0.5)
+    b.BackgroundColor3 = feature and not hasAccess(feature) and Color3.fromRGB(50, 50, 65) or color
+    b.Text = feature and not hasAccess(feature) and "🔒 " .. text or text
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.GothamBold; b.TextSize = 12; b.BorderSizePixel = 0; b.ZIndex = 82
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    b.MouseButton1Click:Connect(function()
+        if not isAuthenticated then return end
+        if feature and not hasAccess(feature) then
+            Notify("🔒 Premium/Admin apenas!")
+            return
+        end
+        callback()
+    end)
+end
+
+local function ColorPick(text, default, feature, callback)
     local f = Instance.new("Frame", Scroll)
     f.Size = UDim2.new(0.94, 0, 0, 50); f.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
     f.BorderSizePixel = 0; f.ZIndex = 81
@@ -433,15 +483,29 @@ local function ColorPick(text, default, callback)
     lbl.BackgroundTransparency = 1; lbl.Text = text
     lbl.TextColor3 = Color3.fromRGB(200, 200, 220); lbl.Font = Enum.Font.GothamSemibold
     lbl.TextSize = 11; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 82
+    
+    if feature and not hasAccess(feature) then
+        local lockLabel = Instance.new("TextLabel", f)
+        lockLabel.Size = UDim2.new(0, 20, 0, 20); lockLabel.Position = UDim2.new(0.82, 0, 0, 2)
+        lockLabel.BackgroundTransparency = 1; lockLabel.Text = "🔒"
+        lockLabel.TextColor3 = Color3.fromRGB(255, 150, 50)
+        lockLabel.Font = Enum.Font.GothamBold; lockLabel.TextSize = 12; lockLabel.ZIndex = 84
+    end
+    
     local colors = {Color3.fromRGB(255, 80, 80), Color3.fromRGB(80, 130, 255), Color3.fromRGB(80, 255, 100), Color3.fromRGB(255, 255, 80), Color3.fromRGB(180, 80, 255), Color3.fromRGB(255, 255, 255)}
     for i, color in pairs(colors) do
         local b = Instance.new("TextButton", f)
         b.Size = UDim2.new(0, 20, 0, 20); b.Position = UDim2.new(0.05 + ((i-1) * 0.15), 0, 0, 26)
-        b.BackgroundColor3 = color; b.Text = ""; b.BorderSizePixel = 0; b.ZIndex = 82
+        b.BackgroundColor3 = feature and not hasAccess(feature) and Color3.fromRGB(40, 40, 55) or color
+        b.Text = ""; b.BorderSizePixel = 0; b.ZIndex = 82
         Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
         local st = Instance.new("UIStroke", b)
         st.Color = color == default and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 40, 60)
         b.MouseButton1Click:Connect(function()
+            if feature and not hasAccess(feature) then
+                Notify("🔒 Premium/Admin apenas!")
+                return
+            end
             callback(color)
             for _, c in pairs(f:GetChildren()) do if c:IsA("TextButton") and c:FindFirstChild("UIStroke") then c.UIStroke.Color = c.BackgroundColor3 == color and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(40, 40, 60) end end
         end)
@@ -453,9 +517,9 @@ local function Pad()
     p.Size = UDim2.new(1, 0, 0, 6); p.BackgroundTransparency = 1
 end
 
--- CONTEÚDO
-Sec("🎯 AIMBOT")
-Tgl("Aimbot (Inimigos)", false, function(v)
+-- ===== CONTEÚDO DO MENU =====
+Sec("🎯 AIMBOT (Todos)")
+Tgl("Aimbot (Inimigos)", false, "Aimbot", function(v)
     AimbotEnabled = v
     if v then
         if not FOVCircle then
@@ -474,30 +538,30 @@ Tgl("Aimbot (Inimigos)", false, function(v)
         if FOVCircle then FOVCircle.Visible = false end
     end
 end)
-Tgl("Esconder FOV", false, function(v)
+Tgl("Esconder FOV", false, "HideFOV", function(v)
     FOVHidden = v
     if FOVCircle and FOVCircle:FindFirstChild("UIStroke") then FOVCircle.UIStroke.Transparency = v and 1 or 0 end
 end)
 
-Sec("⚡ TELEKILL")
-Tgl("Ativar Telekill", false, ToggleTelekill)
+Sec("⚡ TELEKILL (Premium)")
+Tgl("Ativar Telekill", false, "Telekill", ToggleTelekill)
 
-Sec("⚡ MOVIMENTO")
-Btn("IR ATÉ O INIMIGO", Color3.fromRGB(60, 140, 60), TeleportToTarget)
-Btn("PUXAR INIMIGO", Color3.fromRGB(140, 60, 140), PullTarget)
+Sec("⚡ MOVIMENTO (Premium)")
+Btn("IR ATÉ O INIMIGO", Color3.fromRGB(60, 140, 60), "Teleport", TeleportToTarget)
+Btn("PUXAR INIMIGO", Color3.fromRGB(140, 60, 140), "Pull", PullTarget)
 
-Sec("👁 ESP")
-Tgl("ESP", false, function(v)
+Sec("👁 ESP (Todos)")
+Tgl("ESP", false, "ESP", function(v)
     ESPEnabled = v
     if not v then for _, o in pairs(ESPObjects) do if o and o.Frame then o.Frame:Destroy() end end; ESPObjects = {} end
 end)
-Tgl("Caixa", true, function(v) ESPBox = v; for _, d in pairs(ESPObjects) do if d.Box then d.Box.Visible = v end end end)
-Tgl("Nome", true, function(v) ESPName = v; for _, d in pairs(ESPObjects) do if d.NameTag then d.NameTag.Visible = v end end end)
-Tgl("Distância", true, function(v) ESPDistance = v; for _, d in pairs(ESPObjects) do if d.DistTag then d.DistTag.Visible = v end end end)
-Tgl("Tracer", true, function(v) ESPTracer = v; for _, d in pairs(ESPObjects) do if d.Tracer then d.Tracer.Visible = v end end end)
+Tgl("Caixa", true, "ESP", function(v) ESPBox = v; for _, d in pairs(ESPObjects) do if d.Box then d.Box.Visible = v end end end)
+Tgl("Nome", true, "ESP", function(v) ESPName = v; for _, d in pairs(ESPObjects) do if d.NameTag then d.NameTag.Visible = v end end end)
+Tgl("Distância", true, "ESP", function(v) ESPDistance = v; for _, d in pairs(ESPObjects) do if d.DistTag then d.DistTag.Visible = v end end end)
+Tgl("Tracer", true, "ESP", function(v) ESPTracer = v; for _, d in pairs(ESPObjects) do if d.Tracer then d.Tracer.Visible = v end end end)
 
-Sec("🎨 COR ESP")
-ColorPick("Cor ESP", ESPColor, function(c)
+Sec("🎨 COR ESP (Premium)")
+ColorPick("Cor ESP", ESPColor, "ESPColor", function(c)
     ESPColor = c
     for _, d in pairs(ESPObjects) do
         if d.Box and d.Box:FindFirstChild("UIStroke") then d.Box.UIStroke.Color = c end
@@ -507,16 +571,39 @@ ColorPick("Cor ESP", ESPColor, function(c)
     end
 end)
 
-Sec("⚙️ AIMBOT")
-Sld("FOV", 50, 300, FOVRadius, function(v) FOVRadius = v; if FOVCircle then FOVCircle.Size = UDim2.new(0, v*2, 0, v*2) end end)
-Sld("Suavidade", 1, 15, Smoothness, function(v) Smoothness = v end)
+Sec("⚙️ AIMBOT (Premium)")
+Sld("FOV", 50, 300, FOVRadius, "Aimbot", function(v) FOVRadius = v; if FOVCircle then FOVCircle.Size = UDim2.new(0, v*2, 0, v*2) end end)
+Sld("Suavidade", 1, 15, Smoothness, "Smoothness", function(v) Smoothness = v end)
 
-Sec("🛡️ SEGURANÇA")
-Tgl("Team Check", false, function(v) TeamCheck = v end)
-Tgl("Wall Check", false, function(v) WallcheckEnabled = v end)
+Sec("🛡️ SEGURANÇA (Premium)")
+Tgl("Team Check", false, "Security", function(v) TeamCheck = v end)
+Tgl("Wall Check", false, "Security", function(v) WallcheckEnabled = v end)
 
-Sec("🎨 COR FOV")
-ColorPick("Cor FOV", FOVColor, function(c) FOVColor = c; if FOVCircle and FOVCircle:FindFirstChild("UIStroke") then FOVCircle.UIStroke.Color = c end end)
+Sec("🎨 COR FOV (Premium)")
+ColorPick("Cor FOV", FOVColor, "FOVColor", function(c) FOVColor = c; if FOVCircle and FOVCircle:FindFirstChild("UIStroke") then FOVCircle.UIStroke.Color = c end end)
+
+-- Info da Key
+Sec("🔑 STATUS")
+local keyInfo = Instance.new("Frame", Scroll)
+keyInfo.Size = UDim2.new(0.94, 0, 0, 34); keyInfo.BackgroundColor3 = Color3.fromRGB(28, 28, 48)
+keyInfo.BorderSizePixel = 0; keyInfo.ZIndex = 81
+Instance.new("UICorner", keyInfo).CornerRadius = UDim.new(0, 7)
+local keyText = Instance.new("TextLabel", keyInfo)
+keyText.Size = UDim2.new(1, 0, 1, 0); keyText.BackgroundTransparency = 1
+keyText.Text = "🔑 Key: Nenhuma"; keyText.TextColor3 = Color3.fromRGB(150, 150, 170)
+keyText.Font = Enum.Font.GothamSemibold; keyText.TextSize = 10; keyText.ZIndex = 82
+
+local function updateKeyInfo()
+    if currentKey ~= "" then
+        local tier = keys[currentKey] and keys[currentKey].tier or "Desconhecido"
+        keyText.Text = "🔑 " .. tier .. " | " .. table.concat(userFeatures, ", ")
+        if tier == "Free" then
+            keyText.TextColor3 = Color3.fromRGB(255, 180, 50)
+        else
+            keyText.TextColor3 = Color3.fromRGB(80, 255, 100)
+        end
+    end
+end
 
 Pad()
 
@@ -533,25 +620,21 @@ LoginBtn.MouseButton1Click:Connect(function()
         return
     end
     
-    if checkKey(key) then
+    local valid, tier = checkKey(key)
+    
+    if valid then
         isAuthenticated = true
         currentKey = key
-        showStatus("✅ KEY VÁLIDA!", Color3.fromRGB(80, 255, 100))
+        showStatus("✅ " .. tier .. " | Bem-vindo!", Color3.fromRGB(80, 255, 100))
         
-        print("✅ Key válida: " .. key)
-        
-        -- Destruir tela de login
         task.wait(1)
         LoginFrame:Destroy()
         
-        -- ✅ MOSTRAR BOTÃO ⚡
         Fab.Visible = true
-        print("✅ Botão ⚡ agora visível!")
         
-        Notify("✅ SCRIPT ATIVADO!")
+        Notify("✅ KR0W " .. tier .. " ATIVADO!")
         
         -- Iniciar sistemas
-        -- Aimbot
         RunService.RenderStepped:Connect(function()
             if not isAuthenticated then return end
             if not AimbotEnabled or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
@@ -562,7 +645,7 @@ LoginBtn.MouseButton1Click:Connect(function()
                     if t then
                         local pos, vis = Camera:WorldToViewportPoint(t.Position)
                         if vis then
-                            if WallcheckEnabled then
+                            if WallcheckEnabled and hasAccess("Security") then
                                 local ray = Ray.new(Camera.CFrame.Position, (t.Position - Camera.CFrame.Position).Unit * 500)
                                 local hit = workspace:FindPartOnRay(ray, LP.Character)
                                 if not hit or not hit:IsDescendantOf(p.Character) then vis = false end
@@ -578,7 +661,6 @@ LoginBtn.MouseButton1Click:Connect(function()
             if closest then Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, closest.Position), 1 / Smoothness) end
         end)
         
-        -- ESP
         local function CreateESP(player)
             if ESPObjects[player] then return end
             local f = Instance.new("Frame", gui); f.BackgroundTransparency = 1; f.BorderSizePixel = 0; f.ZIndex = 30
@@ -622,7 +704,6 @@ LoginBtn.MouseButton1Click:Connect(function()
         
     else
         showStatus("❌ KEY INVÁLIDA!", Color3.fromRGB(255, 80, 80))
-        print("❌ Key inválida: " .. key)
     end
 end)
 
@@ -634,7 +715,7 @@ Fab.InputBegan:Connect(function(i)
     end
 end)
 Fab.InputEnded:Connect(function()
-    if not fabMoved then Main.Visible = true end
+    if not fabMoved then Main.Visible = true; updateKeyInfo() end
     fabDrag = false
 end)
 UserInputService.InputChanged:Connect(function(i)
@@ -656,6 +737,4 @@ UserInputService.InputChanged:Connect(function(i)
 end)
 UserInputService.InputEnded:Connect(function() menuDrag = false end)
 
-print("✅✅✅ SCRIPT CARREGADO! ✅✅✅")
-print("🔐 Tela de login visível")
-print("Keys válidas: SCRIPTBOT-12345, SCRIPTBOT-ADMIN, SCRIPTBOT-FREE")
+print("✅✅✅ KR0W SCRIPTS CARREGADO! ✅✅✅")
